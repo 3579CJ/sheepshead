@@ -466,8 +466,11 @@ function mkBack(sz){let d=document.createElement('div');d.className=`card-back s
 // ── GAME STATE BUILDER ─────────────────────────────────────────────────────
 function buildGameState(n,names){
   let deck=shuffle(buildDeck());
-  let blind=[deck.pop(),deck.pop()];
-  // Deal remaining 30 cards as evenly as possible
+  // Blind size: 4 for 4-handed (even deal), 2 for all others
+  let blindSize=n===4?4:2;
+  let blind=[];
+  for(let i=0;i<blindSize;i++)blind.push(deck.pop());
+  // Deal remaining cards evenly
   let hands=Array.from({length:n},()=>[]);
   for(let i=0;i<deck.length;i++)hands[i%n].push(deck[i]);
   return{
@@ -610,26 +613,30 @@ function doPick(p){
 // ── BURY ───────────────────────────────────────────────────────────────────
 let burySelected=[];
 function showBuryModal(){
+  let buryCount=G.numPlayers===4?4:2;
   G.phase='burying';burySelected=[];
   let hb=document.getElementById('hand-bury');hb.innerHTML='';
-  document.getElementById('bury-info').textContent='0 of 2 selected';
+  document.getElementById('bury-info').textContent=`0 of ${buryCount} selected`;
   document.getElementById('btn-bury-confirm').style.display='none';
   let hand=[...G.hands[myPlayerIdx]],allTrump=hand.every(isTrump);
   hand.forEach(c=>{
     let canBury=allTrump||!isTrump(c);
     let card=mkCard(c,'hand',false,null);
-    if(canBury){card.style.cursor='pointer';card.onclick=()=>toggleBury(c,card);}
+    if(canBury){card.style.cursor='pointer';card.onclick=()=>toggleBury(c,card,buryCount);}
     else card.style.opacity='.45';
     hb.appendChild(card);
   });
+  document.getElementById('bury-modal').querySelector('h2').textContent=`Bury ${buryCount} Cards`;
+  document.getElementById('bury-modal').querySelector('p').textContent=`Select ${buryCount} cards to bury. Cannot bury trump unless hand is all trump.`;
   document.getElementById('bury-modal').classList.add('show');
 }
-function toggleBury(c,el){
+function toggleBury(c,el,buryCount){
+  buryCount=buryCount||(G.numPlayers===4?4:2);
   let k=ckey(c),idx=burySelected.findIndex(x=>ckey(x)===k);
   if(idx>=0){burySelected.splice(idx,1);el.classList.remove('selected-bury');}
-  else if(burySelected.length<2){burySelected.push(c);el.classList.add('selected-bury');}
-  document.getElementById('bury-info').textContent=`${burySelected.length} of 2 selected`;
-  document.getElementById('btn-bury-confirm').style.display=burySelected.length===2?'inline-block':'none';
+  else if(burySelected.length<buryCount){burySelected.push(c);el.classList.add('selected-bury');}
+  document.getElementById('bury-info').textContent=`${burySelected.length} of ${buryCount} selected`;
+  document.getElementById('btn-bury-confirm').style.display=burySelected.length===buryCount?'inline-block':'none';
 }
 document.getElementById('btn-bury-confirm').onclick=async()=>{
   document.getElementById('bury-modal').classList.remove('show');
@@ -637,15 +644,16 @@ document.getElementById('btn-bury-confirm').onclick=async()=>{
   if(isMultiplayer)await pushState();
 };
 function aiDoBury(p){
+  let buryCount=G.numPlayers===4?4:2;
   let hand=G.hands[p],allTrump=hand.every(isTrump);
   let eligible=allTrump?[...hand]:hand.filter(c=>!isTrump(c));
   let sorted=[...eligible].sort((a,b)=>cpts(a)-cpts(b)||cpow(a)-cpow(b));
-  let sel=sorted.slice(0,2);
-  if(sel.length<2){
+  let sel=sorted.slice(0,buryCount);
+  if(sel.length<buryCount){
     let extra=hand.filter(c=>!sel.some(x=>ckey(x)===ckey(c))).sort((a,b)=>cpts(a)-cpts(b));
-    sel.push(extra[0]);
+    while(sel.length<buryCount&&extra.length)sel.push(extra.shift());
   }
-  finalizeBury(p,sel.slice(0,2));
+  finalizeBury(p,sel.slice(0,buryCount));
 }
 function finalizeBury(p,cards){
   G.buried=cards;G.buriedPts=cards.reduce((s,c)=>s+cpts(c),0);
