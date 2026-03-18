@@ -128,6 +128,7 @@ h1{font-size:1.3em;margin:6px 0 1px;letter-spacing:3px;color:#ffd700;text-shadow
     <button class="menu-btn btn-play" id="btn-vs-ai">▶ Play vs AI (5-handed)</button>
     <button class="menu-btn btn-create" id="btn-create-room">⊞ Create Room</button>
     <button class="menu-btn btn-join" id="btn-join-room">⊞ Join Room</button>
+    <button class="menu-btn" id="btn-rules" style="background:rgba(255,255,255,.12);color:#fff;border:2px solid rgba(255,255,255,.2)">📖 Rules</button>
   </div>
   <div class="menu-version">Wisconsin-style · 3–5 players · Blind always 2 cards</div>
 </div>
@@ -140,6 +141,17 @@ h1{font-size:1.3em;margin:6px 0 1px;letter-spacing:3px;color:#ffd700;text-shadow
     <div class="room-btn btn-confirm" id="btn-create-confirm" style="cursor:pointer;padding:13px 0;font-weight:bold;border-radius:12px">Create Game</div>
     <div class="error-msg" id="create-error"></div>
     <button class="room-btn btn-back" id="btn-create-back">← Back</button>
+  </div>
+</div>
+
+<!-- RULES -->
+<div class="screen" id="rules-screen" style="justify-content:flex-start;padding:0">
+  <div style="width:100%;max-width:600px;margin:0 auto;padding:20px 20px 40px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-top:10px">
+      <button id="btn-rules-back" style="padding:8px 16px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:12px;font-family:Georgia,serif;font-size:.88em;cursor:pointer">← Back</button>
+      <h2 style="color:#ffd700;letter-spacing:3px;font-size:1.4em">RULES</h2>
+    </div>
+    <div id="rules-content" style="font-size:.88em;line-height:1.7;color:#eee"></div>
   </div>
 </div>
 
@@ -258,6 +270,37 @@ let roomListener=null;
 let gameListener=null;
 
 // ── NAVIGATION ─────────────────────────────────────────────────────────────
+document.getElementById('btn-rules').onclick=()=>{buildRules();showScreen('rules-screen')};
+document.getElementById('btn-rules-back').onclick=()=>showScreen('menu-screen');
+function buildRules(){
+  const sec=(title,body)=>`<div style="margin-bottom:18px"><div style="color:#ffd700;font-size:1em;font-weight:bold;letter-spacing:1px;border-bottom:1px solid rgba(255,215,0,.25);padding-bottom:4px;margin-bottom:8px">${title}</div>${body}</div>`;
+  const p=t=>`<p style="margin:4px 0">${t}</p>`;
+  const ul=items=>`<ul style="margin:4px 0 4px 18px">${items.map(i=>`<li style="margin:3px 0">${i}</li>`).join('')}</ul>`;
+  document.getElementById('rules-content').innerHTML=
+    sec('1. Overview',p('Sheepshead is a trick-taking card game for 3–5 players.')+p('Play solo against AI or create a room to play with friends online.'))
+   +sec('2. Deck',p('32 cards: 7, 8, 9, 10, J, Q, K, A of each suit (♣ ♠ ♥ ♦).'))
+   +sec('3. Trump',p('All Queens, all Jacks, and all Diamonds are trump regardless of suit.')+p('<strong style="color:#ffd700">Trump order (highest → lowest):</strong>')+p('Q♣, Q♠, Q♥, Q♦, J♣, J♠, J♥, J♦, A♦, 10♦, K♦, 9♦, 8♦, 7♦'))
+   +sec('4. Non-Trump Suits',p('Within each non-trump suit, cards rank:')+p('A, 10, K, 9, 8, 7 (highest → lowest)'))
+   +sec('5. Player Counts',ul(['3 players: picker alone vs 2 opponents','4 players: picker + secret partner vs 2','5 players: picker + secret partner vs 3'])+p('The game adjusts automatically based on how many players are in the room.'))
+   +sec('6. The Blind',ul(['2 cards are always removed before dealing','The picker takes the blind into their hand','The picker then discards 2 cards face-down','Discarded cards\' points go to the picker\'s team']))
+   +sec('7. Partner (J♦)',ul(['The holder of the J♦ is the picker\'s secret partner','The partner\'s identity is hidden until they play the J♦','If the picker holds the J♦, they go alone (1 vs rest)','3-handed: picker always goes alone']))
+   +sec('8. Picking Phase',ul(['Players take turns choosing to Pick or Pass','First player willing to pick becomes the declarer','If ALL players pass → Leasters round begins']))
+   +sec('9. Trick-Taking',ul(['You must follow the suit that was led if you can','If you can\'t follow suit, play any card','Highest trump wins if any trump is played','Otherwise, highest card of the led suit wins','Trick winner leads the next trick']))
+   +sec('10. Scoring',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin:6px 0;max-width:200px">${[['Ace','11'],['10','10'],['King','4'],['Queen','3'],['Jack','2'],['9/8/7','0']].map(([r,v])=>`<span>${r}</span><span style="color:#ffd700">${v} pts</span>`).join('')}</div>`+p('Picker\'s team needs more than half the total points to win.')+p('Schneider: winning team earns bonus if opponent scores very few.'))
+   +sec('11. Leasters',ul(['Triggered when all players pass the blind','The blind stays unused','Everyone plays individually — no teams','Goal: take the FEWEST points','Player with lowest score wins','Player with most points loses']))
+   +sec('12. AI Behavior',ul(['AI picks with strong trump hands','AI won\'t pick if holding the J♦ (prefers to stay secret partner)','AI smears points onto ally\'s winning tricks','In Leasters: AI avoids taking tricks and dumps low cards']))
+   +sec('13. Tips & Strategy',ul([
+     '🃏 <strong>Count trump.</strong> There are 14 trump cards. Keep track of how many have been played — if most are gone, your Ace of clubs is likely safe.',
+     '🎯 <strong>Pick with 3+ trump.</strong> A hand with 3 or more trump cards is generally strong enough to pick the blind.',
+     '🤫 <strong>Hide your partnership.</strong> If you hold the J♦, don\'t reveal yourself early — wait for a good moment to play it and surprise the opponents.',
+     '💰 <strong>Smear points.</strong> When your partner is winning a trick, play high-point cards (Aces, 10s) onto it to boost your team\'s score.',
+     '🦆 <strong>Duck tricks.</strong> In Leasters, avoid playing cards that win. Lead low, follow low, and let others take the points.',
+     '♦ <strong>Lead trump early.</strong> If you\'re the picker with strong trump, lead them early to pull trump out of opponents\' hands.',
+     '🧠 <strong>Watch what\'s played.</strong> The trick log at the bottom shows every card played — use it to figure out what\'s still out there.',
+     '⚠️ <strong>Bury wisely.</strong> When you pick, bury your highest-point non-trump cards (Aces, 10s) to bank points before the game starts.',
+     '🏆 <strong>Schneider bonus.</strong> Try to hold the opposition under 30 points — hitting Schneider is a big win for your team.'
+   ]));
+}
 document.getElementById('btn-vs-ai').onclick=()=>{showScreen('game-screen');isMultiplayer=false;numPlayers=5;myPlayerIdx=0;initGame()};
 document.getElementById('btn-create-room').onclick=()=>showScreen('create-screen');
 document.getElementById('btn-join-room').onclick=()=>showScreen('join-screen');
